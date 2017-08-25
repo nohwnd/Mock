@@ -165,8 +165,11 @@ $stck = New-Module -Name Stack {
 # in real test code, without the hassle of running full
 # pester
 $pstr = New-Module -Name Pstr {
+
+    function Write-Screen ([string] $Value, [ConsoleColor] $Color, [int]$Margin) {
+        Write-Host -ForegroundColor $Color (" "*2*$Margin + $Value)
+    }
     function Block ($Name, $Test, $Hint) {
-        Write-Host -ForegroundColor Green "Entering $Name" 
         $scope = New-Scope -Name $Name -Hint $Hint
         Push-Scope $scope
 
@@ -174,18 +177,27 @@ $pstr = New-Module -Name Pstr {
         &$Test # | Out-Null
 
         $null = Pop-Scope
-        Write-Host -ForegroundColor Green "Leaving $Name" 
+        
     }
 
     function It ($Name, $Test) {
+        $margin = @(Get-ScopeHistory).Count
+        Write-Screen -Value "It - $Name {`n" -Color Green -Margin $margin 
         Block -Name $Name -Test $Test -Hint "It"
+        Write-Screen -Value "}`n" -Color Green -Margin $margin
     }
     function Context ($Name, $Test) {
+        $margin =@(Get-ScopeHistory).Count
+        Write-Screen -Value "Context - $Name {" -Color Green -Margin $margin
         Block -Name $Name -Test $Test -Hint "Context"
+        Write-Screen -Value "}" -Color Green -Margin $margin
     }
 
     function Describe ($Name, $Test) {
+        $margin = @(Get-ScopeHistory).Count
+        Write-Screen -Value "Describe - $Name {" -Color Green -Margin $margin
         Block -Name $Name -Test $Test -Hint "Describe"
+        Write-Screen -Value "}" -Color Green -Margin $margin
     }
     
     function ShouldBe {
@@ -196,9 +208,9 @@ $pstr = New-Module -Name Pstr {
             [Parameter(Position = 1)]
             $Expected
         )
-        if ( $Actual -eq $Expected )
+        if ($Actual -eq $Expected)
         {
-            Write-Host '  match'
+            Write-Host 'Assertion match'
         }
         else
         {
