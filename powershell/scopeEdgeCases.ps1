@@ -1,5 +1,25 @@
 . "$PSScriptRoot\setup.ps1"
 
+$pstr2 = New-Module -Name Pstr2 {
+    
+    function Save-ExecutionContext { 
+    #saves the outer scope excution context for later
+
+        [cmdletbinding()]
+        param($Context)
+        $script:s = $Context.SessionState
+        $script:i =$Context.InvokeCommand
+    }
+    
+    function Run-InTopLevelExecutionContext ([scriptblock] $ScriptBlock) {
+    # run the code in the saved context
+        "run through provider on top again"
+        $script:i.InvokeScript($script:s, $ScriptBlock.GetNewClosure(), [object[]]@())
+    }
+    
+} | Import-Module -force
+
+    
 function i1 { 'real i1' }
 function i2 { "real i2 - $(& ([scriptblock]::Create({i1})))" }
 
@@ -164,24 +184,6 @@ $l = New-Module -Name l {
 
     Export-ModuleMember -Function l1
 } | Import-Module -Force -PassThru
-
-
-# think real Pester does something similar for us, but I am not 
-# 100% sure it behaves the same as this
-$pstr2 = New-Module -Name Pstr2 {
-#saves the outer scope excution context for later
-    function Save-ExecutionContext { 
-        [cmdletbinding()]
-        param($Context)
-        $script:s = $Context.SessionState
-        $script:i =$Context.InvokeCommand
-    }
-    # run the code in the saved context
-    function Run-InTopLevelExecutionContext ([scriptblock] $ScriptBlock) {
-        "run through provider on top again"
-        $script:i.InvokeScript($script:s, $ScriptBlock.GetNewClosure(), [object[]]@())
-    }
-} | Import-Module -force
 
 
 $vl1 = 'abc'
