@@ -56,63 +56,81 @@ Describe 'mock function inside a module' {
 
 # we need to run inside of the module scope and mock the function there
 Describe 'mock function inside a module called inside that module' { 
+    Save-ExecutionContext -Context $ExecutionContext
     &$j { # <- run in j module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | out-null
-        It 'invokes mock' {
-            $r = j2
-            $r | ShouldBe 'real j2 - fake j1'
+        Run-InTopLevelExecutionContext {
+            It 'invokes mock' {
+                $r = j2
+                $r | ShouldBe 'real j2 - fake j1'
+            }
         }
     }
 }
 
 Describe 'mock function inside a module called from another module' {
+    Save-ExecutionContext -Context $ExecutionContext
     &$j { # <- run in j module scope
         New-Mock -FunctionName 'k1' -MockWith { 'fake k1' } | out-null
-        It 'invokes mock' {
-            $r = j3
-            $r | ShouldBe 'real j3 - fake k1'
-        }    
+        Run-InTopLevelExecutionContext {
+            It 'invokes mock' {
+                $r = j3
+                $r | ShouldBe 'real j3 - fake k1'
+            }    
+        }
     }
 }
 
 Describe 'mock function inside one module called from another module inside that module' {
+    Save-ExecutionContext -Context $ExecutionContext
     $x = &$j { $x }  # <- get the internal x module from j
     &$x { # <- run in x module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | out-null
-        It 'invokes mock' {
-            $r = x1
-            $r | ShouldBe 'real x1 - fake j1'
-        }    
+        Run-InTopLevelExecutionContext {
+            It 'invokes mock' {
+                $r = x1
+                $r | ShouldBe 'real x1 - fake j1'
+            }    
+        }
     }
 }
 
 Describe 'mock function inside one module called from another module imported inside that module' {
+    Save-ExecutionContext -Context $ExecutionContext
     $y = &$j { Get-Module y }  # <- normally you would probably import the module and do this instead of having it in variable
     &$y  { # <- run in y module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | out-null
-        It 'invokes mock' {
-            $r = y1
-            $r | ShouldBe 'real y1 - fake j1'
-        }    
+        Run-InTopLevelExecutionContext {
+            It 'invokes mock' {
+                $r = y1
+                $r | ShouldBe 'real y1 - fake j1'
+            }    
+        }
     }
 }
 
 Describe 'mock function inside a module invoked from an unbound scriptblock' {
+    Save-ExecutionContext -Context $ExecutionContext
     &$j { # <- run in j module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | Out-Null
-        It 'invokes mock' {
-            $r = j4
-            $r | ShouldBe 'real j4 - fake j1'
+        Run-InTopLevelExecutionContext {
+            It 'invokes mock' {
+                $r = j4
+                $r | ShouldBe 'real j4 - fake j1'
+            }
         }
     }
 }
 
 Describe 'mock function inside a module invoked from an unbound scriptblock from another module' {
+    Save-ExecutionContext -Context $ExecutionContext
     &$j { # <- run in j module scope
         New-Mock -FunctionName 'k1' -MockWith { 'fake k1' } | out-null
-        It 'invokes mocks' {
-            $r = j5
-            $r | ShouldBe 'real j5 - fake k1'
+        Run-InTopLevelExecutionContext {
+            It 'invokes mocks' {
+                $r = j5
+                $r | ShouldBe 'real j5 - fake k1'
+            }
         }
     }
 
@@ -124,14 +142,16 @@ Describe 'mock function inside a module invoked from an unbound scriptblock from
 
 # nice try confusing me with using k2 instead of k1 :P :))
 Describe 'mock function invoked from a scriptblock late bound to another module' {
+    Save-ExecutionContext -Context $ExecutionContext
     &$k { # <- run in k module scope 
         New-Mock -FunctionName 'k1' -MockWith { 'fake k1' } | out-null
 
         &$j { # <- run in j module scope
-            
-            It 'invokes mocks' {
-                $r = j6
-                $r | ShouldBe 'real j6 - fake k1'
+            Run-InTopLevelExecutionContext {
+                It 'invokes mocks' {
+                    $r = j6
+                    $r | ShouldBe 'real j6 - fake k1'
+                }
             }
         }
     }
