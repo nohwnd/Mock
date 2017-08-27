@@ -1,11 +1,12 @@
 # remove all modules, especially Pester so it does not 
 # get in the way when we try to call our functions the 
 # same way Pester calls them
-get-module pester, pstr, mocking, stack | remove-module 
+get-module pester, pstr, mocking, stack, scope | remove-module 
 $PSModuleAutoLoadingPreference = 'Stop'
 
 # define mocking module to hold our functions
 $mck = New-Module -Name Mocking {
+    $_scope = 'mock'
     
     # import New-Mock from the binary    
     Import-Module "$psscriptroot\BinaryMocking.dll" -Force
@@ -128,6 +129,7 @@ $mck = New-Module -Name Mocking {
 
 
 $stck = New-Module -Name Stack {
+    $_scope = 'stack'
     [Collections.Stack]$script:scopeStack = New-Object 'Collections.Stack';
 
     function New-Scope ([string]$Name, [string]$Hint, [string]$Id = [Guid]::NewGuid().ToString('N')) { 
@@ -165,7 +167,7 @@ $stck = New-Module -Name Stack {
 # in real test code, without the hassle of running full
 # pester
 $pstr = New-Module -Name Pstr {
-
+    $_scope = 'pstr'
     function Write-Screen ([string] $Value, [ConsoleColor] $Color, [int]$Margin) {
         Write-Host -ForegroundColor $Color (" "*2*$Margin + $Value)
     }
@@ -219,6 +221,107 @@ $pstr = New-Module -Name Pstr {
     }       
 }
 
+$scope = New-Module -Name Scope {
+    $_scope = 'scope'
+    function Get-InternalSessionState
+    {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true, ParameterSetName = 'FromScriptBlock')]
+            [scriptblock]
+            $ScriptBlock,
+    
+            [Parameter(Mandatory = $true, ParameterSetName = 'FromSessionState')]
+            [Management.Automation.SessionState]
+            $SessionState
+        )
+    
+        
+        $flags = [System.Reflection.BindingFlags]'Instance,NonPublic'
+        if ("FromScriptBlock" -eq $PSCmdlet.ParameterSetName)
+        {
+            return [scriptblock].GetProperty('SessionStateInternal', $flags).GetValue($ScriptBlock, $null)
+        }
+        
+        [Management.Automation.SessionState].GetProperty('Internal', $flags).GetValue($SessionState, $null)
+    }
+
+    function Set-ScriptBlockScope
+    {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [ScriptBlock] $ScriptBlock,
+            [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+            $SessionStateInternal,
+            [Switch]$PassThru
+        )
+    
+        $flags = [System.Reflection.BindingFlags]'Instance,NonPublic'
+        $property = [ScriptBlock].GetProperty('SessionStateInternal', $flags)
+        $property.SetValue($ScriptBlock, $SessionStateInternal, $null)
+        if ($PassThru)
+        {
+            $ScriptBlock
+        }
+    }
+    
+    # store the session state of the caller, pester does this by default
+    # when pester state is created, but having explicit cmdlet gives 
+    # us chance to store the state more-explicitly, to make the behaviour
+    # easier to understand.
+    function Save-ScriptScope {
+        [CmdletBinding()]
+        param ()
+        $script:scriptScope = Get-InternalSessionState -SessionState $PSCmdlet.SessionState
+    }
+
+    function Invoke-InScriptScope{
+        [CmdletBinding()]
+        param(
+            [ScriptBlock] $ScriptBlock
+        )
+        
+        $InternalSessionState = $script:scriptScope
+        
+        # copy the scriptblock, this avoids mutation
+        # of the script block state, which could lead to 
+        # confusing behavior if the caller reuses the same 
+        # scriptblock elsewhere
+        $scriptBlockCopy = [ScriptBlock]::Create($ScriptBlock)
+
+        # define internal session state of the scriptblock to make
+        # it invoke in the correct scope
+        $InternalSessionState | Set-ScriptBlockScope $scriptBlockCopy
+        &$scriptBlockCopy
+    }
+
+    function Invoke-InModuleScope {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory=$true, ParameterSetName="Module", ValueFromPipeline=$true)]
+            [Management.Automation.PSModuleInfo] $Module,
+            [Parameter(Mandatory=$true, ParameterSetName="ModuleName", ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
+            [Management.Automation.PSModuleInfo] $ModuleName,
+            [Parameter(Mandatory=$true)]
+            [ScriptBlock]
+            $ScriptBlock
+        )
+
+        if ("Module" -eq $PSCmdlet.ParameterSetName){
+            $Module = Get-Module -Name $ModuleName
+        }
+
+        # the same thing as in Invoke-InScriptScope happens here
+        # but & automatically uses the session state of the module
+        # to invoke the scriptblock
+        &$Module $ScriptBlock
+    }
+
+    Export-ModuleMember -Function 'Invoke-InModuleScope','Save-ScriptScope','Invoke-InScriptScope'
+}
+
 Import-Module $mck -Force
 Import-Module $stck -Force
 Import-Module $pstr -Force
+Import-Module $scope -Force
