@@ -308,7 +308,7 @@ $scope = New-Module -Name Scope {
             $ScriptBlock
         )
 
-        if ("Module" -eq $PSCmdlet.ParameterSetName){
+        if ("ModuleName" -eq $PSCmdlet.ParameterSetName){
             $Module = Get-Module -Name $ModuleName
         }
 

@@ -72,7 +72,7 @@ Describe 'mock function inside a module' {
 
 # we need to run inside of the module scope and mock the function there
 Describe 'mock function inside a module called inside that module' { 
-    &$j { # <- run in j module scope
+    Invoke-InModuleScope -Module $j -ScriptBlock { # <- run in j module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | out-null
 
         It 'we are in j scope' {
@@ -93,7 +93,7 @@ Describe 'mock function inside a module called inside that module' {
 }
 
 Describe 'mock function inside a module called from another module' {
-    &$j { # <- run in j module scope
+    Invoke-InModuleScope -Module $j -ScriptBlock { # <- run in j module scope
         New-Mock -FunctionName 'k1' -MockWith { 'fake k1' } | out-null
         Invoke-InScriptScope {
             It 'invokes mock' {
@@ -113,8 +113,8 @@ Describe 'mock function inside a module called from another module' {
 }
 
 Describe 'mock function inside one module called from another module inside that module' {
-    $x = &$j { $x }  # <- get the internal x module from j
-    &$x { # <- run in x module scope
+    $x = Invoke-InModuleScope -Module $j -ScriptBlock { $x }  # <- get the internal x module from j
+    Invoke-InModuleScope -Module $x -ScriptBlock { # <- run in x module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | out-null
         Invoke-InScriptScope {
             It 'invokes mock' {
@@ -134,8 +134,8 @@ Describe 'mock function inside one module called from another module inside that
 }
 
 Describe 'mock function inside one module called from another module imported inside that module' {
-    $y = &$j { Get-Module y }  # <- normally you would probably import the module and do this instead of having it in variable
-    &$y  { # <- run in y module scope
+    $y = Invoke-InModuleScope -Module $j -ScriptBlock { Get-Module y }  # <- normally you would probably import the module and do this instead of having it in variable
+    Invoke-InModuleScope -Module $y -ScriptBlock  { # <- run in y module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | out-null
         Invoke-InScriptScope {
             It 'invokes mock' {
@@ -155,7 +155,7 @@ Describe 'mock function inside one module called from another module imported in
 }
 
 Describe 'mock function inside a module invoked from an unbound scriptblock' {
-    &$j { # <- run in j module scope
+    Invoke-InModuleScope -Module $j -ScriptBlock { # <- run in j module scope
         New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | Out-Null
         Invoke-InScriptScope {
             It 'invokes mock' {
@@ -175,7 +175,7 @@ Describe 'mock function inside a module invoked from an unbound scriptblock' {
 }
 
 Describe 'mock function inside a module invoked from an unbound scriptblock from another module' {
-    &$j { # <- run in j module scope
+    Invoke-InModuleScope -Module $j -ScriptBlock { # <- run in j module scope
         New-Mock -FunctionName 'k1' -MockWith { 'fake k1' } | out-null
         Invoke-InScriptScope {
             It 'invokes mocks' {
@@ -205,14 +205,14 @@ Describe 'mock function inside a module invoked from an unbound scriptblock from
 
 # nice try confusing me with using k2 instead of k1 :P :))
 Describe 'mock function invoked from a scriptblock late bound to another module' {
-    &$k { # <- run in k module scope 
+    Invoke-InModuleScope -Module $k -ScriptBlock { # <- run in k module scope 
         New-Mock -FunctionName 'k1' -MockWith { 'fake k1' } | out-null
 
         It 'we are in k scope' {
             $_scope | ShouldBe 'k'
         }
 
-        &$j { # <- run in j module scope
+        Invoke-InModuleScope -Module $j -ScriptBlock { # <- run in j module scope
 
             It 'we are in j scope' {
                 $_scope | ShouldBe 'j'
@@ -251,7 +251,7 @@ Invoke-InScriptScope {$vl1} | Shouldbe 'abc'
 # our module
 Describe 'mock function inside a module called inside that module' { 
 
-    &$l { # <- run in l module scope
+    Invoke-InModuleScope -Module $l -ScriptBlock { # <- run in l module scope
         New-Mock -FunctionName 'l1' -MockWith { 'fake l1' } | out-null
         
         It 'gives vl1 value from the module scope' {
@@ -271,7 +271,7 @@ Describe 'mock function inside a module called inside that module' {
                 $vl1 | ShouldBe 'abc'
             }
 
-            &$l {
+            Invoke-InModuleScope -Module $l -ScriptBlock {
                 It 'invokes mock' {
                     $r = l2
                     $r | ShouldBe 'real l2 - fake l1'
@@ -307,9 +307,9 @@ It "asdf" {
     $_scope = 'asdf it'
     &{
         $_scope = 'second level'
-        &$j {
+        Invoke-InModuleScope -Module $j -ScriptBlock {
             $_scope | ShouldBe 'j'
-            &$k {
+            Invoke-InModuleScope -Module $k -ScriptBlock {
                 $_scope | ShouldBe 'k'
                 Invoke-InScriptScope { 
                     $_scope | ShouldBe 'second level'
