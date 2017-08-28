@@ -29,11 +29,11 @@ $mck = New-Module -Name Mocking {
         $parameterFilter = $ParameterFilter
 
         $mockInfo = New-MockInfo `
-        -MockId $mockId `
-        -FunctionName $functionName `
-        -DefiningScope $scope `
-        -MockWith $mockWith `
-        -ParameterFilter $parameterFilter
+            -MockId $mockId `
+            -FunctionName $functionName `
+            -DefiningScope $scope `
+            -MockWith $mockWith `
+            -ParameterFilter $parameterFilter
 
         Add-Mock -Mock $mockInfo
         $mockInfo
@@ -74,13 +74,12 @@ $mck = New-Module -Name Mocking {
         $script:mockTable += $Mock
     }
 
-    function New-MockInfo ([string]$MockId, [string]$FunctionName, [string]$Module, [ScriptBlock]$MockWith, [ScriptBlock]$ParameterFilter, $DefiningScope)
-    {
+    function New-MockInfo ([string]$MockId, [string]$FunctionName, [string]$Module, [ScriptBlock]$MockWith, [ScriptBlock]$ParameterFilter, $DefiningScope) {
         [pscustomobject]@{ 
-            MockId = $MockId
-            FunctionName = $FunctionName
-            DefiningScope = $DefiningScope
-            MockWith = $MockWith
+            MockId          = $MockId
+            FunctionName    = $FunctionName
+            DefiningScope   = $DefiningScope
+            MockWith        = $MockWith
             ParameterFilter = $ParameterFilter
         }
     }
@@ -93,13 +92,13 @@ $mck = New-Module -Name Mocking {
         $script:mockTable
     }
 
-    function Add-MockCall ($MockId, $FunctionName)  {
+    function Add-MockCall ($MockId, $FunctionName) {
         $script:mockCallHistory += [pscustomobject]@{ 
-            MockId = $MockId
+            MockId       = $MockId
             FunctionName = $FunctionName
 
-            Scope = Get-ScopeHistory
-            Time = (Get-Date)
+            Scope        = Get-ScopeHistory
+            Time         = (Get-Date)
         }
     }
 
@@ -114,9 +113,8 @@ $mck = New-Module -Name Mocking {
         $callHistory = Get-MockCallHistory | Filter-FunctionName $FunctionName
         $mockCalls = $callHistory | foreach { 
             
-            $ids=  ( $_.Scope | Select -Last ($scope + 1) ) | select -ExpandProperty id  
-            if ($ids -contains $currentScope )
-            {
+            $ids = ( $_.Scope | Select -Last ($scope + 1) ) | select -ExpandProperty id  
+            if ($ids -contains $currentScope ) {
                 $_
             }
         }
@@ -134,7 +132,7 @@ $stck = New-Module -Name Stack {
 
     function New-Scope ([string]$Name, [string]$Hint, [string]$Id = [Guid]::NewGuid().ToString('N')) { 
         New-Object -TypeName PsObject -Property @{
-            Id = $Id
+            Id   = $Id
             Name = $Name
             Hint = $Hint
         }
@@ -149,17 +147,16 @@ $stck = New-Module -Name Stack {
     }
 
     function Get-Scope ($Scope = 0) {
-        if ($Scope -eq 0) 
-        {
+        if ($Scope -eq 0) {
             $script:scopeStack.Peek()
             
         }
     }
 
     function Get-ScopeHistory {
-       $history = $script:scopeStack.ToArray()
-       [Array]::Reverse($history)
-       $history
+        $history = $script:scopeStack.ToArray()
+        [Array]::Reverse($history)
+        $history
     }
 }
 
@@ -169,7 +166,7 @@ $stck = New-Module -Name Stack {
 $pstr = New-Module -Name Pstr {
     $_scope = 'pstr'
     function Write-Screen ([string] $Value, [ConsoleColor] $Color, [int]$Margin) {
-        Write-Host -ForegroundColor $Color (" "*2*$Margin + $Value)
+        Write-Host -ForegroundColor $Color (" " * 2 * $Margin + $Value)
     }
     function Block ($Name, $Test, $Hint) {
         $scope = New-Scope -Name $Name -Hint $Hint
@@ -189,7 +186,7 @@ $pstr = New-Module -Name Pstr {
         Write-Screen -Value "}`n" -Color Green -Margin $margin
     }
     function Context ($Name, $Test) {
-        $margin =@(Get-ScopeHistory).Count
+        $margin = @(Get-ScopeHistory).Count
         Write-Screen -Value "Context - $Name {" -Color Green -Margin $margin
         Block -Name $Name -Test $Test -Hint "Context"
         Write-Screen -Value "}" -Color Green -Margin $margin
@@ -210,12 +207,10 @@ $pstr = New-Module -Name Pstr {
             [Parameter(Position = 1)]
             $Expected
         )
-        if ($Actual -eq $Expected)
-        {
+        if ($Actual -eq $Expected) {
             Write-Host 'Assertion match'
         }
-        else
-        {
+        else {
             Write-Error "`r`nExpected: $Expected `r`nActual:   $Actual"
         }
     }       
@@ -223,8 +218,7 @@ $pstr = New-Module -Name Pstr {
 
 $scope = New-Module -Name Scope {
     $_scope = 'scope'
-    function Get-InternalSessionState
-    {
+    function Get-InternalSessionState {
         [CmdletBinding()]
         param (
             [Parameter(Mandatory = $true, ParameterSetName = 'FromScriptBlock')]
@@ -238,16 +232,14 @@ $scope = New-Module -Name Scope {
     
         
         $flags = [System.Reflection.BindingFlags]'Instance,NonPublic'
-        if ("FromScriptBlock" -eq $PSCmdlet.ParameterSetName)
-        {
+        if ("FromScriptBlock" -eq $PSCmdlet.ParameterSetName) {
             return [scriptblock].GetProperty('SessionStateInternal', $flags).GetValue($ScriptBlock, $null)
         }
         
         [Management.Automation.SessionState].GetProperty('Internal', $flags).GetValue($SessionState, $null)
     }
 
-    function Set-ScriptBlockScope
-    {
+    function Set-ScriptBlockScope {
         [CmdletBinding()]
         param (
             [Parameter(Mandatory = $true)]
@@ -260,8 +252,7 @@ $scope = New-Module -Name Scope {
         $flags = [System.Reflection.BindingFlags]'Instance,NonPublic'
         $property = [ScriptBlock].GetProperty('SessionStateInternal', $flags)
         $property.SetValue($ScriptBlock, $SessionStateInternal, $null)
-        if ($PassThru)
-        {
+        if ($PassThru) {
             $ScriptBlock
         }
     }
@@ -276,7 +267,7 @@ $scope = New-Module -Name Scope {
         $script:scriptScope = Get-InternalSessionState -SessionState $PSCmdlet.SessionState
     }
 
-    function Invoke-InScriptScope{
+    function Invoke-InScriptScope {
         [CmdletBinding()]
         param(
             [ScriptBlock] $ScriptBlock
@@ -299,16 +290,16 @@ $scope = New-Module -Name Scope {
     function Invoke-InModuleScope {
         [CmdletBinding()]
         param (
-            [Parameter(Mandatory=$true, ParameterSetName="Module", ValueFromPipeline=$true)]
+            [Parameter(Mandatory = $true, ParameterSetName = "Module", ValueFromPipeline = $true)]
             [Management.Automation.PSModuleInfo] $Module,
-            [Parameter(Mandatory=$true, ParameterSetName="ModuleName", ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
-            [Management.Automation.PSModuleInfo] $ModuleName,
-            [Parameter(Mandatory=$true)]
+            [Parameter(Mandatory = $true, ParameterSetName = "ModuleName", ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+            [String] $ModuleName,
+            [Parameter(Mandatory = $true)]
             [ScriptBlock]
             $ScriptBlock
         )
 
-        if ("ModuleName" -eq $PSCmdlet.ParameterSetName){
+        if ("ModuleName" -eq $PSCmdlet.ParameterSetName) {
             $Module = Get-Module -Name $ModuleName
         }
 
@@ -318,7 +309,7 @@ $scope = New-Module -Name Scope {
         &$Module $ScriptBlock
     }
 
-    Export-ModuleMember -Function 'Invoke-InModuleScope','Save-ScriptScope','Invoke-InScriptScope'
+    Export-ModuleMember -Function 'Invoke-InModuleScope', 'Save-ScriptScope', 'Invoke-InScriptScope'
 }
 
 Import-Module $mck -Force
