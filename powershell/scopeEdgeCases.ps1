@@ -54,6 +54,30 @@ $j = New-Module j {
             "real j6 - $(k1)"
         })
     }
+
+    class cj1 {
+        [object] Invoke() {
+            return j1
+        }
+    }
+    function j7 {
+        [cj1]::new().Invoke()
+    }
+
+    function _j8 { 'real _j8' }
+    class cj2 {
+        [object] Invoke() {
+            return _j8
+        }
+    }
+    function j9 {
+        [cj2]::new().Invoke()
+    }
+    function j10 {
+        return [cj2]::new()
+    }
+
+    Export-ModuleMember -Function j*
 } -ArgumentList $k
 
 # nothing special is needed we shadow the function in the top level scope so the module 
@@ -203,7 +227,8 @@ Describe 'mock function inside a module invoked from an unbound scriptblock from
     }
 }
 
-# nice try confusing me with using k2 instead of k1 :P :))
+# nice try confusing me with using k2 instead of k1 :P :))                  #
+#                                         wot?  who would do such a thing?  #
 Describe 'mock function invoked from a scriptblock late bound to another module' {
     Invoke-InModuleScope -Module $k -ScriptBlock { # <- run in k module scope 
         New-Mock -FunctionName 'k1' -MockWith { 'fake k1' } | out-null
@@ -298,6 +323,51 @@ Describe 'mock function inside a module called inside that module' {
             It 'we are in script scope' {
                 $_scope | ShouldBe 'script'
             }
+        }
+    }
+}
+
+Describe 'mock function invoked from a class method' {
+    New-Mock -FunctionName 'i1' -MockWith { 'fake i1' } | out-null
+    class c {
+        [object] Invoke() {
+            return i1
+        }
+    }
+    It 'invokes mock' {
+        $c = [c]::new()
+
+        $r = $c.Invoke()
+        $r | ShouldBe 'fake i1'
+    }
+}
+
+Describe 'mock exported function from a class method inside the module' {
+    New-Mock -FunctionName 'j1' -MockWith { 'fake j1' } | Out-Null
+    It 'invokes mock' {
+        $r = j7
+        $r | ShouldBe 'fake j1'
+    }
+}
+
+Describe 'mock unexported function bound to module invoked from a class method inside the module.' {
+    Invoke-InModuleScope -Module $j -ScriptBlock {
+        New-Mock -FunctionName '_j8' -MockWith { 'fake _j8' } | Out-Null
+        It 'invokes mock' {
+            $r = j9
+            $r | ShouldBe 'fake _j8'
+        }
+    }
+}
+
+Describe 'mock unexported function bound to module invoked from a class method of an instance originating inside the module but invoked outside the module' {
+    Invoke-InModuleScope -Module $j -ScriptBlock {
+        New-Mock -FunctionName '_j8' -MockWith { 'fake _j8' } | Out-Null
+        It 'invokes mock' {
+            $c = j10
+
+            $r = $c.Invoke()
+            $r | ShouldBe 'fake _j8'
         }
     }
 }
